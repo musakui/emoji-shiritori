@@ -1,38 +1,45 @@
 <script setup lang="ts">
-import { ref, shallowRef, watchEffect } from 'vue'
+import { ref, watchEffect } from 'vue'
 import { STARTS } from './jp.js'
+import { data as emoji } from '/data.js?url'
+import { walk } from './search.js'
 
-type EmojiData = {
-	id: number
-	cat: string
-	code: string
-	rare: number[]
-	read: string[]
-}
-
-const emoji = shallowRef<Map<string, EmojiData>>(new Map())
 const rarity = ['', 'bg-blue-600', 'bg-blue-700', 'bg-blue-900']
-
-const firstWord = ref('')
+const firstWord = ref('す')
 const emojiListTxt = ref('[]')
+const parsedList = ref([])
+const running = ref(false)
+
+const startWalk = () => {
+	if (running.value) {
+		running.value = false
+		return
+	}
+	running.value = true
+	const st = [{ dst: firstWord.value }]
+	let i = 0
+	const full = []
+	for (const result of walk(st, new Set(parsedList.value))) {
+		if (result.length < 21) continue
+		const sc = result.slice(1)
+		full.push([sc.reduce((t, r) => r.rare + t, 0), ...sc])
+		++i
+		if (i > 200 || !running.value) break
+	}
+	full.sort((a, b) => b[0] - a[0])
+	console.log(full)
+	running.value = false
+}
 
 watchEffect(() => {
 	try {
 		if (!emojiListTxt.value) return
 		const parsed = JSON.parse(emojiListTxt.value)
 		if (!Array.isArray(parsed)) return
-		const correct = parsed.flatMap((p) => {
-			const z = emoji.value.get(p)
-			return z ? [z] : []
-		})
-		console.log(correct)
+		parsedList.value = parsed
 	} catch (err) {
 		//
 	}
-})
-
-import('/data.js?url').then((r) => {
-	emoji.value = new Map(r.data.map((r) => [r.code, r]))
 })
 </script>
 
@@ -50,12 +57,13 @@ import('/data.js?url').then((r) => {
 			<datalist id="start-kana">
 				<option v-for="k of STARTS" :value="k"></option>
 			</datalist>
+			<button class="px-2 py-1 rounded bg-gray-700" @click="startWalk">walk</button>
 		</div>
 		<details>
 			<summary>table</summary>
 			<table>
 				<tbody>
-					<tr v-for="[_, em] of emoji" :key="em.id">
+					<tr v-for="em of emoji" :key="em.id">
 						<td class="font-mono text-right">{{ em.id }}</td>
 						<td class="text-lg">{{ String.fromCodePoint(parseInt(em.code, 16)) }}</td>
 						<td class="flex gap-1">
