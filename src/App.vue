@@ -52,7 +52,9 @@ watchEffect(() => {
 			<datalist id='start-kana'>
 				<option v-for='k of STARTS' :value='k'></option>
 			</datalist>
-			<button class='px-2 py-1 rounded bg-gray-700' @click='startWalk'>walk</button>
+			<button class='px-2 py-1 rounded bg-gray-700' @click='startWalk'>
+				{{ running ? 'stop' : 'solve' }}
+			</button>
 		</div>
 		<div class='p-2 flex flex-col'>
 			<details v-for='[sc, ...items] of results' class='py-1'>
@@ -60,7 +62,7 @@ watchEffect(() => {
 					<span v-for='itm of items'>{{ itm.emj }}</span>
 					({{ sc }})
 				</summary>
-				<span v-for='itm of items'>{{ itm.emj }} {{ itm.text }}&nbsp;</span>
+				<span v-for='itm of items' :title="itm.score">{{ itm.emj }} {{ itm.text }} －</span>
 			</details>
 		</div>
 	</div>

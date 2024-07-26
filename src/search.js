@@ -1,6 +1,41 @@
 import * as KANA from './kana.js'
-import { DAKU_MAP } from './jp.js'
 import { data } from '/data.js?url'
+
+const lookup = new Map([
+	[KANA.XA, KANA.A],
+	[KANA.XI, KANA.I],
+	[KANA.XU, KANA.U],
+	[KANA.XE, KANA.E],
+	[KANA.XO, KANA.O],
+	[KANA.GA, KANA.KA],
+	[KANA.GI, KANA.KI],
+	[KANA.GU, KANA.KU],
+	[KANA.GE, KANA.KE],
+	[KANA.GO, KANA.KO],
+	[KANA.ZA, KANA.SA],
+	[KANA.ZI, KANA.SI],
+	[KANA.ZU, KANA.SU],
+	[KANA.ZE, KANA.SE],
+	[KANA.ZO, KANA.SO],
+	[KANA.DA, KANA.TA],
+	[KANA.DI, KANA.TI],
+	[KANA.DU, KANA.TU],
+	[KANA.DE, KANA.TE],
+	[KANA.DO, KANA.TO],
+	[KANA.BA, KANA.HA],
+	[KANA.BI, KANA.HI],
+	[KANA.BU, KANA.HU],
+	[KANA.BE, KANA.HE],
+	[KANA.BO, KANA.HO],
+	[KANA.PA, KANA.HA],
+	[KANA.PI, KANA.HI],
+	[KANA.PU, KANA.HU],
+	[KANA.PE, KANA.HE],
+	[KANA.PO, KANA.HO],
+	[KANA.XYA, KANA.YA],
+	[KANA.XYU, KANA.YU],
+	[KANA.XYO, KANA.YO],
+])
 
 const emoji =
 	/** @type {{ code: string, read: string[], rare: number[] }[]} */ (data)
@@ -13,13 +48,15 @@ export const all = emoji.flatMap((m) => {
 		if (last === KANA.CHO) {
 			last = s.at(-2)
 		}
+		const rare = m.rare[i]
 		return {
-			src: DAKU_MAP.get(first) ?? first,
-			dst: DAKU_MAP.get(last) ?? last,
+			src: lookup.get(first) ?? first,
+			dst: lookup.get(last) ?? last,
 			emj: String.fromCodePoint(parseInt(code, 16)),
 			text: s,
-			rare: m.rare[i],
+			rare,
 			code,
+			score: [...s].length + (rare - 1) * 2,
 		}
 	})
 })
@@ -32,14 +69,12 @@ export const nodes = Map.groupBy(all, ({ src }) => src)
  * @param {Set<string>} avail
  */
 export function* walk(path, avail) {
-	const early = path.length < 20
+	const early = path.length < 19
 	const edges =
 		nodes.get(path.at(-1).dst)?.filter((r) => {
 			return avail.has(r.code) && (!early || r.dst !== KANA.NN)
 		}) ?? []
-	edges.sort((a, b) => {
-		return b.rare - a.rare || b.text.length - a.text.length
-	})
+	edges.sort((a, b) => b.score - a.score)
 	for (const edge of edges) {
 		if (!early) yield [...path, edge]
 		if (avail.size === 1) continue
@@ -54,9 +89,11 @@ export function* walk(path, avail) {
  * @param {string[]} list
  */
 export function* search(start, list) {
-	for (const result of walk([{ dst: start }], new Set(list))) {
-		const sc = result.slice(1)
-		yield [sc.reduce((t, r) => r.text.length + r.rare + t, 0), ...sc]
+	for (const [_, ...ans] of walk([{ dst: start }], new Set(list))) {
+		const word = ans.reduce((t, r) => r.score + t, 0)
+		const enn = ans.at(-1).dst === KANA.NN ? 10 : 0
+		const pft = ans.length === 20 ? 20 : 0
+		yield [word + enn + pft, ...ans]
 	}
 }
 
