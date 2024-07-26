@@ -78,7 +78,7 @@ const getEdges = (src, avail) => {
  * @return {Generator<typeof all, void, unknown>}
  */
 export function* walk(path, avail) {
-	const early = path.length < 19
+	const early = path.length < 18
 	const edges = getEdges(path.at(-1).dst, avail)
 		.filter((r) => !early || r.dst !== KANA.NN)
 		.sort((a, b) => b.score - a.score)
