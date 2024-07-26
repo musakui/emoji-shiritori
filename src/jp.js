@@ -48,6 +48,11 @@ export const STARTS = [
 ]
 
 export const DAKU_MAP = new Map([
+	[KANA.XA, KANA.A],
+	[KANA.XI, KANA.I],
+	[KANA.XU, KANA.U],
+	[KANA.XE, KANA.E],
+	[KANA.XO, KANA.O],
 	[KANA.GA, KANA.KA],
 	[KANA.GI, KANA.KI],
 	[KANA.GU, KANA.KU],

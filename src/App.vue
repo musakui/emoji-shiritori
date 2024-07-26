@@ -1,33 +1,28 @@
-<script setup lang="ts">
+<script setup>
 import { ref, watchEffect } from 'vue'
 import { STARTS } from './jp.js'
-import { data as emoji } from '/data.js?url'
-import { walk } from './search.js'
+import { search, example } from './search.js'
 
-const rarity = ['', 'bg-blue-600', 'bg-blue-700', 'bg-blue-900']
-const firstWord = ref('す')
-const emojiListTxt = ref('[]')
-const parsedList = ref([])
+const start = ref('す')
+const emojiListTxt = ref(JSON.stringify(example))
+const parsedList = ref([''])
+const results = ref([])
 const running = ref(false)
 
-const startWalk = () => {
+const startWalk = async () => {
 	if (running.value) {
 		running.value = false
 		return
 	}
 	running.value = true
-	const st = [{ dst: firstWord.value }]
+	results.value = []
 	let i = 0
-	const full = []
-	for (const result of walk(st, new Set(parsedList.value))) {
-		if (result.length < 21) continue
-		const sc = result.slice(1)
-		full.push([sc.reduce((t, r) => r.rare + t, 0), ...sc])
-		++i
-		if (i > 200 || !running.value) break
+	for (const path of search(start.value, parsedList.value)) {
+		if (++i > 500 || !running.value) break
+		results.value.push(path)
+		await new Promise((r) => setTimeout(r, 12))
 	}
-	full.sort((a, b) => b[0] - a[0])
-	console.log(full)
+	results.value.sort((a, b) => b[0] - a[0])
 	running.value = false
 }
 
@@ -44,36 +39,29 @@ watchEffect(() => {
 </script>
 
 <template>
-	<div class="p-3">
-		<div class="flex gap-2">
+	<div class='p-3'>
+		<div class='flex gap-2'>
 			<label>
-				firstword
-				<input v-model="firstWord" list="start-kana" class="px-2 py-1 w-15 rounded bg-gray-800" />
+				start
+				<input v-model='start' list='start-kana' class='px-2 py-1 w-15 rounded bg-gray-800' />
 			</label>
 			<label>
-				emojiList
-				<input v-model="emojiListTxt" class="px-2 py-1 rounded bg-gray-800" />
+				list
+				<input v-model='emojiListTxt' class='px-2 py-1 rounded bg-gray-800' />
 			</label>
-			<datalist id="start-kana">
-				<option v-for="k of STARTS" :value="k"></option>
+			<datalist id='start-kana'>
+				<option v-for='k of STARTS' :value='k'></option>
 			</datalist>
-			<button class="px-2 py-1 rounded bg-gray-700" @click="startWalk">walk</button>
+			<button class='px-2 py-1 rounded bg-gray-700' @click='startWalk'>walk</button>
 		</div>
-		<details>
-			<summary>table</summary>
-			<table>
-				<tbody>
-					<tr v-for="em of emoji" :key="em.id">
-						<td class="font-mono text-right">{{ em.id }}</td>
-						<td class="text-lg">{{ String.fromCodePoint(parseInt(em.code, 16)) }}</td>
-						<td class="flex gap-1">
-							<div v-for="(rd, i) of em.read" class="px-2 py-1 rounded" :class="rarity[em.rare[i]]">
-								{{ rd }}
-							</div>
-						</td>
-					</tr>
-				</tbody>
-			</table>
-		</details>
+		<div class='p-2 flex flex-col'>
+			<details v-for='[sc, ...items] of results' class='py-1'>
+				<summary>
+					<span v-for='itm of items'>{{ itm.emj }}</span>
+					({{ sc }})
+				</summary>
+				<span v-for='itm of items'>{{ itm.emj }} {{ itm.text }}&nbsp;</span>
+			</details>
+		</div>
 	</div>
 </template>
