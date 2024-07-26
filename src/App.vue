@@ -1,7 +1,7 @@
 <script setup>
 import { ref, watchEffect } from 'vue'
-import { STARTS } from './jp.js'
-import { search, example } from './search.js'
+import { STARTS, KANA } from './jp.js'
+import { solve, example } from './search.js'
 
 const start = ref('す')
 const emojiListTxt = ref(JSON.stringify(example))
@@ -17,12 +17,12 @@ const startWalk = async () => {
 	running.value = true
 	results.value = []
 	let i = 0
-	for (const path of search(start.value, parsedList.value)) {
+	for (const path of solve(start.value, parsedList.value)) {
 		if (++i > 500 || !running.value) break
 		results.value.push(path)
 		await new Promise((r) => setTimeout(r, 12))
 	}
-	results.value.sort((a, b) => b[0] - a[0])
+	results.value.sort((a, b) => b.score - a.score)
 	running.value = false
 }
 
@@ -57,12 +57,21 @@ watchEffect(() => {
 			</button>
 		</div>
 		<div class='p-2 flex flex-col'>
-			<details v-for='[sc, ...items] of results' class='py-1'>
+			<details v-for='items of results' class='py-1'>
 				<summary>
-					<span v-for='itm of items'>{{ itm.emj }}</span>
-					({{ sc }})
+					<span v-for='itm of items' :title="itm.score">{{ itm.emj }}</span>
+					({{ items.score }})
 				</summary>
-				<span v-for='itm of items' :title="itm.score">{{ itm.emj }} {{ itm.text }} －</span>
+				<div class="flex flex-wrap gap-1 p-1">
+					<div class="px-2 rounded rounded-lg bg-gray-700">{{ items.word }}</div>
+					<div v-if="items.end" class="px-2 rounded rounded-lg bg-gray-700">{{ KANA.NN }}</div>
+					<div v-if="items.all" class="px-2 rounded rounded-lg bg-gray-700">all</div>
+				</div>
+				<div class="flex flex-wrap">
+					<div v-for='itm of items'>
+						{{ itm.emj }} {{ itm.text }} －
+					</div>
+				</div>
 			</details>
 		</div>
 	</div>

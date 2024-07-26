@@ -1,5 +1,7 @@
 import * as KANA from './kana.js'
 
+export { KANA }
+
 export const STARTS = [
 	KANA.A,
 	KANA.I,

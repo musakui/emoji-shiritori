@@ -65,16 +65,23 @@ export const all = emoji.flatMap((m) => {
 export const nodes = Map.groupBy(all, ({ src }) => src)
 
 /**
+ * @param {string} src
+ * @param {Set<string>} avail
+ */
+const getEdges = (src, avail) => {
+	return nodes.get(src)?.filter((r) => avail.has(r.code)) ?? []
+}
+
+/**
  * @param {typeof all} path
  * @param {Set<string>} avail
+ * @return {Generator<typeof all, void, unknown>}
  */
 export function* walk(path, avail) {
 	const early = path.length < 19
-	const edges =
-		nodes.get(path.at(-1).dst)?.filter((r) => {
-			return avail.has(r.code) && (!early || r.dst !== KANA.NN)
-		}) ?? []
-	edges.sort((a, b) => b.score - a.score)
+	const edges = getEdges(path.at(-1).dst, avail)
+		.filter((r) => !early || r.dst !== KANA.NN)
+		.sort((a, b) => b.score - a.score)
 	for (const edge of edges) {
 		if (!early) yield [...path, edge]
 		if (avail.size === 1) continue
@@ -85,15 +92,43 @@ export function* walk(path, avail) {
 }
 
 /**
+ * @param {typeof all} init
+ * @param {string[]} list
+ */
+export function* search(init, list) {
+	let good = 0
+	for (const ans of walk(init, new Set(list))) {
+		const word = ans.reduce((t, r) => r.score + t, 0)
+		const end = ans.at(-1).dst === KANA.NN ? 10 : 0
+		const all = ans.length === 20 ? 20 : 0
+		const score = word + end + all
+		if (score < good) continue
+		if (word > good) {
+			good = word
+		}
+		yield Object.assign(ans, { word, end, all, score })
+	}
+}
+
+/**
  * @param {string} start
  * @param {string[]} list
  */
-export function* search(start, list) {
-	for (const [_, ...ans] of walk([{ dst: start }], new Set(list))) {
-		const word = ans.reduce((t, r) => r.score + t, 0)
-		const enn = ans.at(-1).dst === KANA.NN ? 10 : 0
-		const pft = ans.length === 20 ? 20 : 0
-		yield [word + enn + pft, ...ans]
+export function* solve(start, list) {
+	const iters = getEdges(start, new Set(list)).map((i) => {
+		const la = new Set(list)
+		la.delete(i.code)
+		return search([i], la)
+	})
+	while (true) {
+		let some = false
+		for (const it of iters) {
+			const { value, done } = it.next()
+			if (done) continue
+			some = true
+			if (value) yield value
+		}
+		if (!some) break
 	}
 }
 
