@@ -42,21 +42,21 @@ const emoji =
 
 export const all = emoji.flatMap((m) => {
 	const code = m.code
-	return m.read.map((s, i) => {
-		const first = s.at(0)
-		let last = s.at(-1)
-		if (last === KANA.CHO) {
-			last = s.at(-2)
-		}
+	return m.read.map((txt, i) => {
+		const t = [...txt]
+		const len = t.length
+		const fst = t[0]
+		const lst = t[len - (t[len - 1] === KANA.CHO ? 2 : 1)]
 		const rare = m.rare[i]
 		return {
-			src: lookup.get(first) ?? first,
-			dst: lookup.get(last) ?? last,
+			src: lookup.get(fst) ?? fst,
+			dst: lookup.get(lst) ?? lst,
 			emj: String.fromCodePoint(parseInt(code, 16)),
-			text: s,
+			txt,
+			len,
 			rare,
 			code,
-			score: [...s].length + (rare - 1) * 2,
+			score: len + (rare - 1) * 2,
 		}
 	})
 })
@@ -78,79 +78,100 @@ const getEdges = (src, avail) => {
  * @return {Generator<typeof all, void, unknown>}
  */
 export function* walk(path, avail) {
-	const early = path.length < 18
+	const last = path.at(-1)
+	const early = path.length < 19
+	avail.delete(last.code)
 	const edges = getEdges(path.at(-1).dst, avail)
 		.filter((r) => !early || r.dst !== KANA.NN)
 		.sort((a, b) => b.score - a.score)
 	for (const edge of edges) {
-		if (!early) yield [...path, edge]
+		const np = [...path, edge]
+		if (!early) yield np
 		if (avail.size === 1) continue
-		const z = new Set(avail)
-		z.delete(edge.code)
-		yield* walk([...path, edge], z)
-	}
-}
-
-/**
- * @param {typeof all} init
- * @param {string[]} list
- */
-export function* search(init, list) {
-	let good = 0
-	for (const ans of walk(init, new Set(list))) {
-		const word = ans.reduce((t, r) => r.score + t, 0)
-		const end = ans.at(-1).dst === KANA.NN ? 10 : 0
-		const all = ans.length === 20 ? 20 : 0
-		const score = word + end + all
-		if (score < good) continue
-		if (word > good) {
-			good = word
-		}
-		yield Object.assign(ans, { word, end, all, score })
+		yield* walk(np, new Set(avail))
 	}
 }
 
 /**
  * @param {string} start
- * @param {string[]} list
+ * @param {string[]} avail
  */
-export function* solve(start, list) {
-	const iters = getEdges(start, new Set(list)).map((i) => {
-		const la = new Set(list)
-		la.delete(i.code)
-		return search([i], la)
+export function* solve(start, avail) {
+	const list = new Set(avail)
+	const queue = getEdges(start, list).map((i) => {
+		return Object.assign([i], { score: i.score, list })
 	})
+	const board = []
+	const pop = () => {
+		let idx = 0,
+			best = 0
+		const short = Math.min(...queue.map((q) => q.length))
+		for (const [i, q] of queue.entries()) {
+			if (q.length > short || q.score <= best) continue
+			best = q.score
+			idx = i
+		}
+		return queue.splice(idx, 1)[0]
+	}
+	while (queue.length) {
+		const path = pop()
+		const plen = path.length
+		if (plen > 3) {
+			board.push(path)
+			if (board.length > 250) break
+			continue
+		}
+		const last = path[plen - 1]
+		const word = path.score
+		const list = new Set(path.list)
+		list.delete(last.code)
+		for (const edge of getEdges(last.dst, list)) {
+			const score = word + edge.score
+			queue.push(Object.assign([...path, edge], { score, list }))
+		}
+	}
+	const iters = board.map((p) => walk(p, p.list))
+	const goods = board.map(() => 0)
 	while (true) {
 		let some = false
-		for (const it of iters) {
+		for (const [i, it] of iters.entries()) {
 			const { value, done } = it.next()
 			if (done) continue
+			const word = value.reduce((t, r) => r.score + t, 0)
+			const end = value.at(-1).dst === KANA.NN ? 10 : 0
+			const all = value.length === 20 ? 20 : 0
+			const score = word + end + all
+			if (score < goods[i]) continue
 			some = true
-			if (value) yield value
+			if (word > goods[i]) {
+				goods[i] = word
+			}
+			const key = value.map((p) => p.code).join('-')
+			yield Object.assign(value, { score, word, end, all, key })
 		}
 		if (!some) break
 	}
 }
 
 export const example = [
-	'1f6f5',
-	'1f93f',
-	'1f97f',
-	'1f384',
-	'1f34e',
-	'1f997',
-	'1f42b',
-	'1f50e',
-	'1f43b',
-	'1f476',
+	'1f9f1',
+	'1f378',
+	'1f969',
+	'1f3b8',
 	'1f422',
-	'1f4dd',
-	'1f412',
+	'1f50e',
+	'1f40d',
+	'1f416',
+	'1f943',
+	'1f3b0',
+	'1f415',
+	'1f484',
+	'1f308',
+	'1f37b',
 	'1f408',
-	'23f0',
-	'1f429',
-	'1f9f8',
-	'1f459',
-	'1f95f',
-	'1f335',
+	'1f345',
+	'1f405',
+	'1f35a',
+	'1f391',
+	'1f992',
 ]

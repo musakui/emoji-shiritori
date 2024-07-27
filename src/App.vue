@@ -3,7 +3,7 @@ import { ref, watchEffect } from 'vue'
 import { STARTS, KANA } from './jp.js'
 import { solve, example } from './search.js'
 
-const start = ref('す')
+const start = ref(KANA.RE)
 const emojiListTxt = ref(JSON.stringify(example))
 const parsedList = ref([''])
 const results = ref([])
@@ -18,11 +18,12 @@ const startWalk = async () => {
 	results.value = []
 	let i = 0
 	for (const path of solve(start.value, parsedList.value)) {
-		if (++i > 500 || !running.value) break
+		if (++i > 80 || !running.value) break
 		results.value.push(path)
 		await new Promise((r) => setTimeout(r, 12))
 	}
 	results.value.sort((a, b) => b.score - a.score)
+	results.value.splice(20, results.value.length)
 	running.value = false
 }
 
@@ -57,22 +58,25 @@ watchEffect(() => {
 			</button>
 		</div>
 		<div class='p-2 flex flex-col'>
-			<details v-for='items of results' class='py-1'>
-				<summary>
-					<span v-for='itm of items' :title="itm.score">{{ itm.emj }}</span>
-					({{ items.score }})
-				</summary>
-				<div class="flex flex-wrap gap-1 p-1">
-					<div class="px-2 rounded rounded-lg bg-gray-700">{{ items.word }}</div>
-					<div v-if="items.end" class="px-2 rounded rounded-lg bg-gray-700">{{ KANA.NN }}</div>
-					<div v-if="items.all" class="px-2 rounded rounded-lg bg-gray-700">all</div>
-				</div>
-				<div class="flex flex-wrap">
-					<div v-for='itm of items'>
-						{{ itm.emj }} {{ itm.text }} －
+			<TransitionGroup enter-active-class="duration-100 ease-out" enter-from-class="transform opacity-0"
+				enter-to-class="opacity-100">
+				<details v-for='chain of results' :key="chain.key" class='py-1'>
+					<summary>
+						<span v-for='itm of chain' :title="itm.score">{{ itm.emj }}</span>
+						({{ chain.score }})
+					</summary>
+					<div class="flex flex-wrap gap-1 p-1">
+						<div class="px-2 rounded rounded-lg bg-gray-700">{{ chain.word }}</div>
+						<div v-if="chain.end" class="px-2 rounded rounded-lg bg-gray-700">{{ KANA.NN }}</div>
+						<div v-if="chain.all" class="px-2 rounded rounded-lg bg-gray-700">all</div>
 					</div>
-				</div>
-			</details>
+					<div class="flex flex-wrap">
+						<div v-for='itm of chain'>
+							{{ itm.emj }} {{ itm.txt }} －
+						</div>
+					</div>
+				</details>
+			</TransitionGroup>
 		</div>
 	</div>
 </template>
