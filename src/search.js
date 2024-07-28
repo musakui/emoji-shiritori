@@ -53,6 +53,7 @@ export const all = emoji.flatMap((m) => {
 			dst: lookup.get(lst) ?? lst,
 			emj: String.fromCodePoint(parseInt(code, 16)),
 			txt,
+			nnn: lst === KANA.NN ? 10 : 0,
 			len,
 			rare,
 			code,
@@ -82,9 +83,9 @@ export function* walk(path, avail) {
 	const early = path.length < 19
 	avail.delete(last.code)
 	const edges = getEdges(path.at(-1).dst, avail)
-		.filter((r) => !early || r.dst !== KANA.NN)
 		.sort((a, b) => b.score - a.score)
 	for (const edge of edges) {
+		if (early && edge.nnn) continue
 		const np = [...path, edge]
 		if (!early) yield np
 		if (avail.size === 1) continue
@@ -97,81 +98,52 @@ export function* walk(path, avail) {
  * @param {string[]} avail
  */
 export function* solve(start, avail) {
-	const list = new Set(avail)
-	const queue = getEdges(start, list).map((i) => {
-		return Object.assign([i], { score: i.score, list })
+	const board = getEdges(start, new Set(avail)).map((i) => {
+		const list = new Set(avail)
+		return Object.assign([i], { list })
 	})
-	const board = []
-	const pop = () => {
-		let idx = 0,
-			best = 0
-		const short = Math.min(...queue.map((q) => q.length))
-		for (const [i, q] of queue.entries()) {
-			if (q.length > short || q.score <= best) continue
-			best = q.score
-			idx = i
-		}
-		return queue.splice(idx, 1)[0]
-	}
-	while (queue.length) {
-		const path = pop()
-		const plen = path.length
-		if (plen > 3) {
-			board.push(path)
-			if (board.length > 250) break
-			continue
-		}
-		const last = path[plen - 1]
-		const word = path.score
-		const list = new Set(path.list)
-		list.delete(last.code)
-		for (const edge of getEdges(last.dst, list)) {
-			const score = word + edge.score
-			queue.push(Object.assign([...path, edge], { score, list }))
-		}
-	}
 	const iters = board.map((p) => walk(p, p.list))
 	const goods = board.map(() => 0)
+	const uniqs = board.map(() => new Set([0]))
 	while (true) {
-		let some = false
-		for (const [i, it] of iters.entries()) {
-			const { value, done } = it.next()
+		const results = iters.map((it) => it.next())
+		if (results.every((r) => r.done)) break
+		for (const [i, { value, done }] of results.entries()) {
 			if (done) continue
 			const word = value.reduce((t, r) => r.score + t, 0)
-			const end = value.at(-1).dst === KANA.NN ? 10 : 0
 			const all = value.length === 20 ? 20 : 0
+			const end = value.at(-1).nnn
 			const score = word + end + all
-			if (score < goods[i]) continue
-			some = true
+			if (word <= goods[i] && uniqs[i].has(score)) continue
 			if (word > goods[i]) {
 				goods[i] = word
 			}
+			if (!uniqs[i].has(score)) uniqs[i].add(score)
 			const key = value.map((p) => p.code).join('-')
 			yield Object.assign(value, { score, word, end, all, key })
 		}
-		if (!some) break
 	}
 }
 
 export const example = [
-	'1f9f1',
-	'1f378',
-	'1f969',
-	'1f3b8',
-	'1f422',
-	'1f50e',
-	'1f40d',
-	'1f416',
+	'1f997',
+	'1f996',
 	'1f943',
-	'1f3b0',
-	'1f415',
-	'1f484',
-	'1f308',
-	'1f37b',
+	'1f952',
+	'1f34e',
+	'1f965',
+	'1f3a3',
+	'1f34a',
+	'1f370',
+	'1f344',
+	'1f47b',
+	'1f405',
+	'1f3d3',
+	'1f98e',
+	'1f382',
 	'1f408',
 	'1f345',
-	'1f405',
-	'1f35a',
-	'1f391',
-	'1f992',
+	'1f69a',
+	'1f484',
+	'1f955',
 ]

@@ -3,7 +3,7 @@ import { ref, watchEffect } from 'vue'
 import { STARTS, KANA } from './jp.js'
 import { solve, example } from './search.js'
 
-const start = ref(KANA.RE)
+const start = ref(KANA.KO)
 const emojiListTxt = ref(JSON.stringify(example))
 const parsedList = ref([''])
 const results = ref([])
@@ -18,12 +18,11 @@ const startWalk = async () => {
 	results.value = []
 	let i = 0
 	for (const path of solve(start.value, parsedList.value)) {
-		if (++i > 80 || !running.value) break
+		if (++i > 200 || !running.value) break
 		results.value.push(path)
 		await new Promise((r) => setTimeout(r, 12))
 	}
 	results.value.sort((a, b) => b.score - a.score)
-	results.value.splice(20, results.value.length)
 	running.value = false
 }
 
